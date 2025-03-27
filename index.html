@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <title>MORELLO Lory - DevFront1</title>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="css/style.css"/>
+  <script src="js/javascript.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.geodesic"></script>
+</head>
+<body>
+  <h1>Nouvelle-Calédonie - Les bornes électriques :</h1>
+  
+  <!-- Ma modale -->
+  <div class="modal">
+    <div class="modal__close" onclick="closeModal()">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      </svg>
+    </div>
+    <div id="modal__header"></div>
+    <div id="modal__body"></div>
+  </div>
+  
+  <!-- Ma map -->
+  <div id="mapid"></div>
+  
+  <!-- Ma barre de recherche -->
+  <section>
+    <div class="search__div">
+      <form class="search__bar js-search-form">
+        <input type="text" class="js-search-input" placeholder="Recherche...">
+      </form>
+    </div>
+  </section>
+  
+  <script>
+    let bornes = [];
+
+    // Je crée ma map
+    var mymap = L.map('mapid').setView([-18.2758, 166.4572], 6.2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mymap);
+    
+    const url = 'data/bornes.json';
+    fetch(url)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Erreur de chargement du JSON : ' + response.status);
+        }
+        return response.json();
+      })
+      .then(data => {
+        bornes = data;
+        data.forEach(element => {
+          element.adresseComplete = (element.objectid + element.nom_operateur + element.adresse_station + " " + element.code_postal + " " + element.commune).toLowerCase();
+          element.marker = L.marker([
+            element.geo_shape.geometry.coordinates[1],
+            element.geo_shape.geometry.coordinates[0]
+          ]).addTo(mymap);
+          element.marker.bindPopup(element.adresseComplete);
+          element.marker.on('click', function() {
+            openModal(element);
+          });
+        });
+      })
+      .catch(error => {
+        console.error('Erreur lors du chargement du JSON :', error);
+      });
+    
+    // Ouvrir ma modale
+    function openModal(element) {
+      document.querySelector('.modal').classList.add('modal--open');
+      document.getElementById('modal__body').innerHTML = `
+        <h2>Borne ${element.objectid} :</h2>
+        <div>
+          <p>Adresse station : ${element.adresse_station}</p>
+          <p>Commune : ${element.commune}</p>
+          <p>Code postal : ${element.code_postal}</p>
+          <p>Opérateur : ${element.nom_operateur}</p>
+        </div>
+      `;
+    }
+    
+    // Fermer ma modale
+    function closeModal() {
+      document.querySelector('.modal').classList.remove('modal--open');
+    }
+    
+    // Filtrer mes markers
+    function filterMarkers(searchQuery) {
+      bornes.forEach(borne => {
+        // Vérif si ma recherche correspond à mon adresse
+        if (borne.adresseComplete.includes(searchQuery)) {
+          if (!mymap.hasLayer(borne.marker)) {
+            borne.marker.addTo(mymap);
+          }
+        } else {
+          if (mymap.hasLayer(borne.marker)) {
+            mymap.removeLayer(borne.marker);
+          }
+        }
+      });
+    }
+    
+    // Pour ma barre de recherche
+    function handleSearch(event) {
+      const searchQuery = event.target.value.trim().toLowerCase();
+      filterMarkers(searchQuery);
+      
+      filteredBornes.forEach(borne => {
+        const resultElement = document.createElement("div");
+        resultElement.classList.add("search-result");
+        resultElement.innerHTML = `
+          <h2>Borne ${borne.objectid}</h2>
+          <p>Adresse : ${borne.adresse_station}</p>
+          <p>Commune : ${borne.commune}</p>
+          <p>Code postal : ${borne.code_postal}</p>
+          <p>Opérateur : ${borne.nom_operateur}</p>
+        `;
+      });
+    }
+      
+    document.querySelector('.js-search-input').addEventListener('input', handleSearch);
+  </script>
+</body>
+</html>
